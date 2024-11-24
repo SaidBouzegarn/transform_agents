@@ -201,55 +201,70 @@ def extract_bpmn_elements(text: str) -> BPMNProcess:
     return validated_response
 
 def visualize_process(bpmn_process: BPMNProcess, output_path: str = "process"):
-    """
-    Visualize the BPMN process using graphviz
-    Args:
-        bpmn_process: The BPMN process to visualize
-        output_path: The path where to save the visualization (without extension)
-    """
     dot = Digraph(comment=bpmn_process.process_name)
     dot.attr(rankdir='LR')  # Left to right direction
     
-    # Define node styles for different elements
-    dot.attr('node', shape='rectangle', style='rounded')
+    # Define BPMN-compliant styles
+    dot.attr('node', fontname='Arial')
+    dot.attr('edge', fontname='Arial')
     
-    # Add pools as subgraphs
+    # Add pools as subgraphs with standard BPMN pool formatting
     for pool in bpmn_process.pools:
         with dot.subgraph(name=f'cluster_{pool.id}') as p:
-            p.attr(label=pool.name, style='rounded', bgcolor='lightgrey')
+            p.attr(label=pool.name, style='filled,rounded', 
+                  fillcolor='white', penwidth='2.0',
+                  labelloc='b')  # BPMN pools have labels at the bottom
             
-            # Add lanes as subgraphs within pools
+            # Add lanes with standard BPMN lane formatting
             pool_lanes = [lane for lane in bpmn_process.lanes if lane.parent_pool_id == pool.id]
             for lane in pool_lanes:
                 with p.subgraph(name=f'cluster_{lane.id}') as l:
-                    l.attr(label=lane.name, style='rounded', bgcolor='white')
+                    l.attr(label=lane.name, style='filled', fillcolor='white',
+                          penwidth='1.0', labelloc='c')
 
-    # Add events
+    # Add events with BPMN-compliant shapes and styling
     for event in bpmn_process.events:
-        shape = 'circle'
         if event.type == EventType.START:
-            color = 'green'
+            dot.node(event.id, event.name, shape='circle', 
+                    style='filled', fillcolor='white',
+                    penwidth='2.0', color='#5dbd5a')
         elif event.type == EventType.END:
-            color = 'red'
+            dot.node(event.id, event.name, shape='circle',
+                    style='filled', fillcolor='white',
+                    penwidth='3.0', color='#e9404e')
         else:
-            color = 'yellow'
-        
-        dot.node(event.id, event.name, shape=shape, color=color)
+            dot.node(event.id, event.name, shape='circle',
+                    style='filled', fillcolor='white',
+                    penwidth='2.0', color='#ffa500')
 
-    # Add tasks
+    # Add tasks with BPMN-compliant styling
     for task in bpmn_process.tasks:
-        dot.node(task.id, f"{task.name}\n({task.type})", shape='rectangle')
+        style = 'filled,rounded'
+        if task.type == TaskType.USER:
+            image = '👤'  # User task indicator
+        elif task.type == TaskType.SERVICE:
+            image = '⚙️'  # Service task indicator
+        elif task.type == TaskType.SCRIPT:
+            image = '📜'  # Script task indicator
+        else:
+            image = ''
+            
+        dot.node(task.id, f"{image} {task.name}", shape='rectangle',
+                style=style, fillcolor='white', penwidth='1.5')
 
-    # Add gateways
+    # Add gateways with BPMN-compliant styling
     for gateway in bpmn_process.gateways:
-        dot.node(gateway.id, gateway.name, shape='diamond')
+        label = '×' if gateway.type == GatewayType.EXCLUSIVE else '+' if gateway.type == GatewayType.PARALLEL else 'O'
+        dot.node(gateway.id, f"{label}\n{gateway.name}", shape='diamond',
+                style='filled', fillcolor='white', penwidth='1.5')
 
-    # Add connections
+    # Add sequence flows (connections) with BPMN-compliant styling
     for conn in bpmn_process.connections:
-        label = conn.condition if conn.condition else ''
-        dot.edge(conn.source_id, conn.target_id, label=label)
+        dot.edge(conn.source_id, conn.target_id,
+                label=conn.condition if conn.condition else '',
+                arrowhead='vee', penwidth='1.0')
 
-    # Generate both formats
+    # Generate output
     dot.render(output_path, view=False, format='svg', cleanup=False)
     dot.render(output_path, view=True, format='png', cleanup=True)
 

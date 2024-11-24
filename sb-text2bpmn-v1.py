@@ -4,6 +4,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 import xml.etree.ElementTree as ET
+import re
 
 load_dotenv()
 
@@ -200,73 +201,60 @@ def extract_bpmn_elements(text: str) -> BPMNProcess:
     return validated_response
 
 def convert_to_bpmn_xml(bpmn_process: BPMNProcess) -> str:
-    """Convert the BPMNProcess object to BPMN 2.0 XML format"""
-    
-    # Create the root element
-    root = ET.Element('definitions', {
-        'xmlns': 'http://www.omg.org/spec/BPMN/20100524/MODEL',
+    # Create the root element with correct namespaces
+    root = ET.Element('bpmn:definitions', {
+        'xmlns:bpmn': 'http://www.omg.org/spec/BPMN/20100524/MODEL',
         'xmlns:bpmndi': 'http://www.omg.org/spec/BPMN/20100524/DI',
         'xmlns:dc': 'http://www.omg.org/spec/DD/20100524/DC',
         'xmlns:di': 'http://www.omg.org/spec/DD/20100524/DI',
         'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-        'xmlns:camunda': 'http://camunda.org/schema/1.0/bpmn',
         'id': 'Definitions_1',
-        'targetNamespace': 'http://bpmn.io/schema/bpmn',
-        'exporter': 'bpmn-js',
-        'exporterVersion': '12.0.0'
+        'targetNamespace': 'http://bpmn.io/schema/bpmn'
     })
-    
-    # Create process element
-    process = ET.SubElement(root, 'process', {
-        'id': f'Process_{bpmn_process.process_name}',
+
+    # Create process with sanitized ID
+    process_id = sanitize_id(bpmn_process.process_name)
+    process = ET.SubElement(root, 'bpmn:process', {
+        'id': f'Process_{process_id}',
         'isExecutable': 'false'
     })
-    
-    # Add all elements to the process
-    for pool in bpmn_process.pools:
-        participant = ET.SubElement(root, 'participant', {
-            'id': pool.id,
-            'name': pool.name,
-            'processRef': f'Process_{pool.id}'
-        })
-    
-    # Add tasks
+
+    # Add all BPMN elements to the process
     for task in bpmn_process.tasks:
-        task_element = ET.SubElement(process, 'task', {
-            'id': task.id,
+        task_id = sanitize_id(task.id)
+        task_elem = ET.SubElement(process, 'bpmn:task', {
+            'id': task_id,
             'name': task.name
         })
-    
-    # Add events
+
     for event in bpmn_process.events:
-        event_type = f"{event.type}Event"
-        event_element = ET.SubElement(process, event_type, {
-            'id': event.id,
+        event_id = sanitize_id(event.id)
+        event_elem = ET.SubElement(process, 'bpmn:startEvent' if event.type == 'start' else 'bpmn:endEvent', {
+            'id': event_id,
             'name': event.name
         })
+
+    # Add diagram information
+    diagram = ET.SubElement(root, 'bpmndi:BPMNDiagram', {
+        'id': 'BPMNDiagram_1'
+    })
     
-    # Add gateways
-    for gateway in bpmn_process.gateways:
-        gateway_type = f"{gateway.type}Gateway"
-        gateway_element = ET.SubElement(process, gateway_type, {
-            'id': gateway.id,
-            'name': gateway.name
-        })
-    
-    # Add sequence flows
-    for conn in bpmn_process.connections:
-        seq_flow = ET.SubElement(process, 'sequenceFlow', {
-            'id': f'Flow_{conn.source_id}_{conn.target_id}',
-            'sourceRef': conn.source_id,
-            'targetRef': conn.target_id
-        })
-        if conn.condition:
-            condition = ET.SubElement(seq_flow, 'conditionExpression', {
-                'xsi:type': 'tFormalExpression'
-            })
-            condition.text = conn.condition
-    
-    return ET.tostring(root, encoding='unicode')
+    plane = ET.SubElement(diagram, 'bpmndi:BPMNPlane', {
+        'id': 'BPMNPlane_1',
+        'bpmnElement': f'Process_{process_id}'
+    })
+
+    # Return the formatted XML
+    return ET.tostring(root, encoding='unicode', xml_declaration=True)
+
+def sanitize_id(text: str) -> str:
+    """Sanitize text to be used as XML ID"""
+    # Remove special characters and spaces
+    sanitized = re.sub(r'[^a-zA-Z0-9_-]', '_', text)
+    # Ensure it starts with a letter or underscore
+    if sanitized[0].isdigit():
+        sanitized = f'_{sanitized}'
+    return sanitized
 
 def save_bpmn_diagram(bpmn_process: BPMNProcess, filename: str):
     """Save the BPMN process as a BPMN 2.0 XML file"""
