@@ -81,7 +81,7 @@ class BPMNProcessCorrected(BPMNProcess):
     comment: str = None
 
 def extract_bpmn_elements(text: str) -> BPMNProcess:
-    # Initialize the language model
+
     llm = ChatOpenAI(temperature=0.2, model="gpt-4o")
     
     structured_llm = llm.with_structured_output(BPMNProcess)
@@ -249,10 +249,10 @@ def visualize_process(bpmn_process: BPMNProcess, output_path: str = "process"):
         label = conn.condition if conn.condition else ''
         dot.edge(conn.source_id, conn.target_id, label=label)
 
-    # Save the visualization
+    # Generate both formats
+    dot.render(output_path, view=False, format='svg', cleanup=False)
     dot.render(output_path, view=True, format='png', cleanup=True)
 
-# Example usage
 txt = """
 
 Le processus de souscription à une assurance débute généralement lorsque

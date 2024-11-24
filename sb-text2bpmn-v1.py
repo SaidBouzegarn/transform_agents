@@ -81,7 +81,7 @@ class BPMNProcessCorrected(BPMNProcess):
     comment: str = None
 
 def extract_bpmn_elements(text: str) -> BPMNProcess:
-    # Initialize the language model
+
     llm = ChatOpenAI(temperature=0.2, model="gpt-4")
     
     structured_llm = llm.with_structured_output(BPMNProcess)
@@ -208,7 +208,12 @@ def convert_to_bpmn_xml(bpmn_process: BPMNProcess) -> str:
         'xmlns:bpmndi': 'http://www.omg.org/spec/BPMN/20100524/DI',
         'xmlns:dc': 'http://www.omg.org/spec/DD/20100524/DC',
         'xmlns:di': 'http://www.omg.org/spec/DD/20100524/DI',
-        'targetNamespace': 'http://bpmn.io/schema/bpmn'
+        'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        'xmlns:camunda': 'http://camunda.org/schema/1.0/bpmn',
+        'id': 'Definitions_1',
+        'targetNamespace': 'http://bpmn.io/schema/bpmn',
+        'exporter': 'bpmn-js',
+        'exporterVersion': '12.0.0'
     })
     
     # Create process element
@@ -269,7 +274,6 @@ def save_bpmn_diagram(bpmn_process: BPMNProcess, filename: str):
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(xml_string)
 
-# Example usage
 txt = """
 
 Le processus de souscription à une assurance débute généralement lorsque
@@ -306,5 +310,5 @@ mobile, qui est disponible sur iOS et Android, à moins qu'il ne rencontre des p
 techniques, auquel cas il peut contacter le Service Support Technique."""
 
 validated_process = extract_bpmn_elements(txt)
-save_bpmn_diagram(validated_process, 'insurance_process.xml')
+save_bpmn_diagram(validated_process, 'insurance_process.bpmn')
 
