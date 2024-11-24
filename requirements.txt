@@ -1,0 +1,8 @@
+pydantic
+openai
+langchain
+python-dotenv
+langchain_openai
+bpmn-python
+networkx==2.3
+graphviz

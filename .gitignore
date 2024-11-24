@@ -1,0 +1,4 @@
+.env
+knowledge_db.py
+venv/*
+venv
